@@ -1,4 +1,3 @@
-import logging as log
 from datetime import date
 from email.message import EmailMessage
 
@@ -25,9 +24,11 @@ def convert_days_remaining(expire_date):
 def check_passwords():
     notify_list = []
 
-    url = "https://pytestdev.sharepoint.com/sites/team"
-    path = "/sites/team/Shared%20Documents/files/data-set.xlsx"
+    
+    url = "https://pytestdev.sharepoint.com/sites/team" # SHAREPOINT URL -- AUTHENTICATION
+    relative_path = "/sites/team/Shared%20Documents/files/data-set.xlsx" # EXCEL FILE PATH
 
+    # TOKEN REQUEST / AUTHENTICATION
     ctx_auth = AuthenticationContext(url)
     if ctx_auth.acquire_token_for_user(user, password):
         ctx = ClientContext(url, ctx_auth)
@@ -36,14 +37,18 @@ def check_passwords():
         ctx.execute_query()
         print("Authentication successful")
 
-    response = File.open_binary(ctx, path)
+    # OPEN SHAREPOINT FILE
+    response = File.open_binary(ctx, relative_path)
 
+    # WRITE BYTE STREAM TO EXCEL / FILE OBJECT
     file_object = io.BytesIO()
     file_object.write(response.content)
     file_object.seek(0)  # set file object to start
 
+    # OPEN & READ EXCEL FILE USING PANDAS
     data = pd.read_excel(file_object)
 
+    # ITERATE THROUGH EACH ROW IN THE EXCEL
     for index, row in data.iterrows():
         time_to_expiration = convert_days_remaining(row[0])
         if 45 >= time_to_expiration > 0:
@@ -52,6 +57,7 @@ def check_passwords():
     return notify_list
 
 
+# SEND EMAIL NOTIFICATION(S)
 def send_email(notification_list):
     s = smtplib.SMTP('smtp.outlook.com', 587)
 
@@ -78,15 +84,12 @@ def send_email(notification_list):
         email['To'] = contact_email
         email['X-Priority'] = '1'
         email.set_content(message)
-
-        # OUTPUT LOG
-        log.info('APPLICATION: ' + application + '\n EXPIRES: ' + expire_eta + ' DAYS -- [' + expiration_date + ']' +
-                 '\n CONTACT: ' + contact + '\n EMAIL: ' + contact_email + '\n')
+        
 
         s.send_message(email)
 
     print("Emails sent successfully!")
-    log.info("Emails sent successfully!")
+    
     s.quit()
 
 
